@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 @Tag(name = "Authentication", description = "Endpoints for user authentication and token management")
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -20,12 +23,20 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @Operation(summary = "Google OAuth2 Login", description = "Handles Google OAuth2 authentication by exchanging an auth code for JWT tokens.",
+    @Operation(summary = "Google OAuth2 로그인 페이지로 리디렉션", description = "사용자를 Google OAuth2 인증 페이지로 보냅니다. 인증 후에는 설정된 redirect-uri로 돌아옵니다.")
+    @GetMapping("/google")
+    public void redirectToGoogle(HttpServletResponse response) throws IOException {
+        String url = authService.getGoogleAuthorizationUrl();
+        response.sendRedirect(url);
+    }
+
+
+    @Operation(summary = "Google OAuth2 로그인", description = "Handles Google OAuth2 authentication by exchanging an auth code for JWT tokens.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Authentication successful", content = @Content(schema = @Schema(implementation = AuthResponse.class))),
                     @ApiResponse(responseCode = "400", description = "Invalid authentication code")
             })
-    @PostMapping("/google")
+    @PostMapping("/google/token")
     public ResponseEntity<AuthResponse> signInWithGoogle(@RequestBody AuthRequest request) {
         try {
             AuthResponse response = authService.signInWithGoogle(request.getCode());

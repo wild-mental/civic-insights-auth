@@ -19,6 +19,10 @@ public class AuthService {
     private final UserProfileRepository userProfileRepository;
     private final JwtService jwtService;
 
+    public String getGoogleAuthorizationUrl() {
+        return googleOAuth2Service.buildGoogleAuthorizationUrl();
+    }
+
     @Transactional
     public AuthResponse signInWithGoogle(String code) {
         // 1. Get Google user info

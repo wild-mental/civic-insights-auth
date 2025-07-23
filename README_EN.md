@@ -92,15 +92,24 @@ http://localhost:8001/api/v1
 
 ### Authentication Endpoints
 
-#### Google OAuth2 Login
-**Endpoint:** `POST /auth/google`
+#### Initiate Google OAuth2 Login (Server-driven)
+**Endpoint:** `GET /auth/google`
+- **Action**: Accessing this endpoint will immediately redirect the user to the Google login and consent screen.
+- **Usage**: Use this as the target for a "Login with Google" button in your frontend.
+  ```html
+  <a href="http://localhost:8001/api/v1/auth/google">Login with Google</a>
+  ```
+
+#### Issue Google OAuth2 Token (Client-driven)
+**Endpoint:** `POST /auth/google/token`
+- **Action**: The client (e.g., a mobile app) sends an `authorization_code` it obtained directly to the server to get JWT tokens.
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/google \
+curl -X POST http://localhost:8001/api/v1/auth/google/token \
   -H "Content-Type: application/json" \
   -d '{"code": "google_auth_code"}'
 ```
 
-**Response:**
+**Response (on success):**
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -113,8 +122,19 @@ curl -X POST http://localhost:8001/api/v1/auth/google \
 }
 ```
 
-#### Google OAuth2 Callback (for web flows)
+#### Google OAuth2 Callback (Internal Use)
 **Endpoint:** `GET /auth/login/oauth2/code/google?code={auth_code}`
+- **Action**: After Google authentication, Google redirects the user to this endpoint. The server receives the `code` and handles the token exchange internally.
+- **⚠️ Important**: This endpoint is not meant to be called directly by users. It is normal for it to return a 400 error during manual testing.
+
+**Actual Usage Flow (Server-driven)**:
+```
+1. User: Clicks on GET /auth/google
+2. Server: Responds with a 302 redirect to the Google login page
+3. User: Authenticates and consents on Google
+4. Google: Redirects user back to GET /auth/login/oauth2/code/google with a code
+5. Server: Issues JWT and provides it to the client (e.g., via another redirect)
+```
 
 #### Refresh Token
 **Endpoint:** `POST /auth/refresh`

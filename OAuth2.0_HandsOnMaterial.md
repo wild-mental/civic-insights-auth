@@ -1144,23 +1144,36 @@ export GOOGLE_CLIENT_SECRET="your-actual-google-client-secret"
 
 ### 7.5. Google OAuth2 로그인 테스트
 
-1.  **새로운 인증 코드 받기**: 아래 URL을 브라우저에 붙여넣고 접속합니다. (YOUR_GOOGLE_CLIENT_ID를 실제 값으로 변경)
+서버 주도 방식의 테스트는 매우 간단합니다.
+
+1.  **Google 로그인 페이지로 이동**: 브라우저에서 아래의 새로운 엔드포인트로 접속합니다.
+    ```
+    http://localhost:8001/api/v1/auth/google
+    ```
+2.  **Google 인증**: 서버가 자동으로 Google 로그인 페이지로 리디렉션합니다. Google 계정으로 로그인하고 권한을 허용합니다.
+
+3.  **인증 코드 획득**: 인증이 완료되면, Google은 우리 서버의 콜백 URL(`GET /api/v1/auth/login/oauth2/code/google`)로 리디렉션하면서 `code` 파라미터를 전달합니다. 이 과정에서 브라우저에는 400 오류 페이지가 표시될 수 있지만, 이는 서버가 성공적으로 코드를 받아 처리했음을 의미하므로 **정상적인 동작**입니다. 실제 프론트엔드 애플리케이션에서는 이 응답을 받아 JWT 토큰을 저장하고 다음 페이지로 넘어갑니다.
+
+4.  **JWT 토큰 확인 (서버 로그)**: 애플리케이션 로그를 확인하면 Google로부터 받은 사용자 정보로 JWT 토큰이 생성된 것을 볼 수 있습니다. (실제 운영 시에는 클라이언트에 바로 토큰을 전달합니다.)
+
+**참고: 클라이언트 주도 방식 테스트 (선택 사항)**
+
+만약 클라이언트(예: 모바일 앱)에서 직접 인증 코드를 받아 서버에 전달하는 방식을 테스트하고 싶다면, 변경된 `POST` 엔드포인트를 사용하면 됩니다.
+
+1.  **새로운 인증 코드 받기**: 수동으로 Google 인증 URL을 만들어 접속 후 코드를 복사합니다.
     ```
     https://accounts.google.com/o/oauth2/v2/auth?client_id=YOUR_GOOGLE_CLIENT_ID&redirect_uri=http://localhost:8001/api/v1/auth/login/oauth2/code/google&response_type=code&scope=openid%20profile%20email
     ```
-2.  Google 로그인 및 권한을 허용하면, 브라우저가 리디렉션되면서 `code=` 다음에 긴 인증 코드가 표시됩니다. 이 코드를 복사합니다. (400 오류가 표시되는 것이 정상입니다.)
-3.  **Swagger UI**에서 `POST /api/v1/auth/google` 엔드포인트를 엽니다.
-4.  **"Try it out"** 클릭 후, `Request body`에 복사한 코드를 넣어줍니다.
+2.  **Swagger UI**에서 `POST /api/v1/auth/google/token` 엔드포인트를 사용하여 복사한 코드로 토큰을 요청합니다.
     ```json
     {
       "code": "복사한_실제_인증_코드"
     }
     ```
-5.  **Execute**를 누르면, `Response body`에 `accessToken`과 `refreshToken`이 포함된 JSON 응답이 나타납니다.
 
 ### 7.6. 보호된 API 테스트
 
-1.  위에서 받은 `accessToken`을 복사합니다.
+1.  위 과정에서 서버 로그나 응답을 통해 얻은 `accessToken`을 복사합니다.
 2.  Swagger UI 우측 상단의 **"Authorize"** 버튼을 클릭합니다.
 3.  `Value` 필드에 `Bearer 복사한_accessToken` 형식으로 붙여넣고 **"Authorize"**를 클릭합니다. (예: `Bearer eyJhbGciOi...`)
 4.  이제 자물쇠 아이콘이 잠긴 것을 확인하고, `User Profile` 태그의 `GET /api/v1/profile` 엔드포인트를 **Execute**하면 정상적으로 200 응답과 함께 프로필 정보가 조회됩니다.

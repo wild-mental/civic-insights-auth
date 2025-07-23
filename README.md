@@ -92,15 +92,24 @@ http://localhost:8001/api/v1
 
 ### 인증 엔드포인트
 
-#### Google OAuth2 로그인
-**엔드포인트:** `POST /auth/google`
+#### Google OAuth2 로그인 시작 (서버 주도)
+**엔드포인트:** `GET /auth/google`
+- **동작**: 이 엔드포인트로 접속하면, 서버는 사용자를 Google 로그인 및 동의 화면으로 즉시 리디렉션합니다.
+- **사용법**: 프론트엔드에서 "Google로 로그인" 버튼 클릭 시 이 엔드포인트로 연결합니다.
+  ```html
+  <a href="http://localhost:8001/api/v1/auth/google">Google로 로그인</a>
+  ```
+
+#### Google OAuth2 토큰 발급 (클라이언트 주도)
+**엔드포인트:** `POST /auth/google/token`
+- **동작**: 클라이언트(모바일 앱 등)가 직접 얻은 `authorization_code`를 서버에 보내 JWT 토큰을 발급받습니다.
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/google \
+curl -X POST http://localhost:8001/api/v1/auth/google/token \
   -H "Content-Type: application/json" \
   -d '{"code": "google_auth_code"}'
 ```
 
-**응답:**
+**응답 (성공 시):**
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -113,19 +122,18 @@ curl -X POST http://localhost:8001/api/v1/auth/google \
 }
 ```
 
-#### Google OAuth2 콜백 (웹 플로우용)
+#### Google OAuth2 콜백 (내부용)
 **엔드포인트:** `GET /auth/login/oauth2/code/google?code={auth_code}`
+- **동작**: Google 인증 후, Google이 사용자를 이 엔드포인트로 리디렉션합니다. 서버는 `code`를 받아 내부적으로 토큰 교환을 처리합니다.
+- **⚠️ 중요**: 사용자가 직접 호출하는 엔드포인트가 아닙니다. 수동 테스트 시 400 오류가 발생하는 것이 정상입니다.
 
-**⚠️ 중요**: 이 엔드포인트는 Google OAuth2 플로우에서만 사용됩니다. 수동 테스트 시 400 오류가 발생하는 것은 정상적인 보안 동작입니다.
-
-**예상되는 동작**:
-- ❌ `code` 파라미터 없이 호출: `400 Bad Request` (정상)
-- ❌ 잘못된 코드로 호출: `400 Bad Request` (정상)  
-- ✅ 유효한 Google OAuth2 코드: `200 OK` (JWT 토큰 반환)
-
-**실제 사용 플로우**:
+**실제 사용 플로우 (서버 주도)**:
 ```
-사용자 → 프론트엔드 → Google 동의 화면 → Google이 실제 코드로 이 엔드포인트 호출 → JWT 반환
+1. 사용자: GET /auth/google 클릭
+2. 서버: Google 로그인 페이지로 302 리디렉션
+3. 사용자: Google 인증 및 동의
+4. Google: GET /auth/login/oauth2/code/google 로 code와 함께 리디렉션
+5. 서버: code로 JWT 발급 후 클라이언트에 전달 (실제 앱에서는 리디렉션 등으로 전달)
 ```
 
 #### 토큰 갱신

@@ -23,7 +23,18 @@ public class GoogleOAuth2Service {
     @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
     private String redirectUri;
 
+    @Value("${spring.security.oauth2.client.registration.google.scope}")
+    private String scope;
+
     private final WebClient webClient;
+
+    public String buildGoogleAuthorizationUrl() {
+        return "https://accounts.google.com/o/oauth2/v2/auth" +
+                "?client_id=" + clientId +
+                "&redirect_uri=" + redirectUri +
+                "&response_type=code" +
+                "&scope=" + scope.replace(",", " "); // application.properties의 scope를 공백으로 구분
+    }
 
     public String getAccessToken(String code) {
         String tokenUri = "https://oauth2.googleapis.com/token";
