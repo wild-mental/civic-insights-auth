@@ -27,21 +27,31 @@ public class JwkController {
     /**
      * JWT 검증을 위한 공개키를 JWK 형식으로 제공합니다.
      * 이 엔드포인트는 OAuth2/OpenID Connect 표준을 따라 구현되었습니다.
+     * 모든 활성 키들을 JWK Set으로 제공하여 키 순환을 지원합니다.
      * 
      * @return JWK Set JSON 객체
      */
     @GetMapping("/.well-known/jwks.json")
     @Operation(
         summary = "JWT 공개키 조회",
-        description = "JWT 토큰 검증을 위한 공개키를 JWK(JSON Web Key) 형식으로 반환합니다."
+        description = "JWT 토큰 검증을 위한 모든 활성 공개키를 JWK(JSON Web Key) 형식으로 반환합니다."
     )
     public Map<String, Object> getJwks() {
-        // RSA 공개키를 JWK 형식으로 변환
-        RSAPublicKey publicKey = (RSAPublicKey) jwtKeyProvider.getPublicKey();
-        JWK jwk = new RSAKey.Builder(publicKey)
-                .keyID("civic-insights-auth-key") // 키 식별자 설정
-                .build();
+        // 모든 활성 키들을 JWK로 변환
+        java.util.List<JWK> jwks = new java.util.ArrayList<>();
         
-        return new JWKSet(jwk).toJSONObject();
+        jwtKeyProvider.getActiveKeys().forEach((keyId, keyInfo) -> {
+            RSAPublicKey publicKey = (RSAPublicKey) keyInfo.getKeyPair().getPublic();
+            JWK jwk = new RSAKey.Builder(publicKey)
+                    .keyID(keyId) // 각 키의 고유 ID 설정
+                    .keyUse(com.nimbusds.jose.jwk.KeyUse.SIGNATURE) // 서명용 키임을 명시
+                    .algorithm(com.nimbusds.jose.JWSAlgorithm.RS256) // RS256 알고리즘
+                    .build();
+            jwks.add(jwk);
+        });
+        
+        // JWK Set으로 반환
+        JWKSet jwkSet = new JWKSet(jwks);
+        return jwkSet.toJSONObject();
     }
 } 

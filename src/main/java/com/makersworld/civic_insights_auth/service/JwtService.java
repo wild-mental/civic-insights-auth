@@ -85,7 +85,14 @@ public class JwtService {
         Date now = new Date(System.currentTimeMillis());
         Date expiryDate = new Date(now.getTime() + expiration);
         
+        // 헤더에 키 ID 추가
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("kid", jwtKeyProvider.getCurrentKeyId());
+        
         return Jwts.builder()
+                .header()
+                    .add(headers)
+                    .and()
                 .claims(claims)
                 .subject(subject)
                 .issuedAt(now)
@@ -103,7 +110,7 @@ public class JwtService {
     public Boolean validateToken(String token, String email) {
         try {
             final String username = extractEmail(token);
-            return (username.equals(email) && !isTokenExpired(token));
+            return (username != null && username.equals(email) && !isTokenExpired(token));
         } catch (Exception e) {
             log.debug("토큰 검증 실패: {}", e.getMessage());
             return false;
@@ -171,20 +178,74 @@ public class JwtService {
     /**
      * 토큰에서 모든 클레임을 추출합니다.
      * RSA 공개키를 사용하여 토큰을 검증합니다.
+     * 토큰의 kid 헤더를 기반으로 적절한 키를 선택합니다.
      * @param token JWT 토큰
      * @return 클레임 객체
      * @throws RuntimeException 토큰 파싱 또는 검증 실패 시
      */
     private Claims extractAllClaims(String token) {
         try {
+            // 먼저 헤더에서 키 ID 추출 (검증 없이)
+            String keyId = extractKeyIdFromHeader(token);
+            
+            // 키 ID가 있으면 해당 키 사용, 없으면 현재 키 사용
+            PublicKey verifyingKey;
+            if (keyId != null) {
+                verifyingKey = jwtKeyProvider.getPublicKey(keyId);
+                if (verifyingKey == null) {
+                    // 해당 키가 없으면 현재 키로 시도
+                    log.debug("키 ID {}에 해당하는 키를 찾을 수 없음, 현재 키로 검증 시도", keyId);
+                    verifyingKey = getVerifyingKey();
+                }
+            } else {
+                verifyingKey = getVerifyingKey();
+            }
+            
             return Jwts.parser()
-                    .verifyWith(getVerifyingKey()) // RSA 공개키로 검증
+                    .verifyWith(verifyingKey) // 선택된 공개키로 검증
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
         } catch (Exception e) {
             log.debug("JWT 토큰 파싱 실패: {}", e.getMessage());
             throw new RuntimeException("Invalid JWT token", e);
+        }
+    }
+
+    /**
+     * JWT 토큰 헤더에서 키 ID를 추출합니다.
+     * 이 메서드는 토큰을 검증하지 않고 헤더만 파싱합니다.
+     * 
+     * @param token JWT 토큰
+     * @return 키 ID, 없으면 null
+     */
+    private String extractKeyIdFromHeader(String token) {
+        try {
+            // 토큰을 점(.)으로 분할하여 헤더 부분 추출
+            String[] chunks = token.split("\\.");
+            if (chunks.length < 2) {
+                return null;
+            }
+            
+            // Base64 디코딩하여 헤더 파싱
+            String headerJson = new String(
+                java.util.Base64.getUrlDecoder().decode(chunks[0])
+            );
+            
+            // 간단한 JSON 파싱으로 kid 추출
+            if (headerJson.contains("\"kid\"")) {
+                String kidPattern = "\"kid\"\\s*:\\s*\"([^\"]+)\"";
+                java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(kidPattern);
+                java.util.regex.Matcher matcher = pattern.matcher(headerJson);
+                if (matcher.find()) {
+                    return matcher.group(1);
+                }
+            }
+            
+            return null;
+        } catch (Exception e) {
+            log.debug("헤더에서 키 ID 추출 실패: {}", e.getMessage());
+            return null;
         }
     }
 
