@@ -32,6 +32,7 @@ public class SecurityConfig {
            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
            .authorizeHttpRequests(auth -> auth
                .requestMatchers(
+                   "/.well-known/jwks.json",
                    "/api/v1/auth/**", 
                    "/error",
                    "/swagger-ui/**",

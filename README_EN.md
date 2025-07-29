@@ -5,7 +5,7 @@ A Spring Boot authentication microservice that provides OAuth2 integration, JWT 
 ## 🚀 Features
 
 - **OAuth2 Authentication** - Google OAuth2 integration
-- **JWT Token Management** - Access token generation, validation, and refresh
+- **JWT Token Management** - RSA asymmetric key-based access token generation, validation, and refresh
 - **User Profile Management** - Complete user profile CRUD operations
 - **Microservice Architecture** - Designed as a dedicated auth service
 - **RESTful API** - Clean REST endpoints with proper HTTP status codes
@@ -20,7 +20,8 @@ A Spring Boot authentication microservice that provides OAuth2 integration, JWT 
 - **Spring Security 6.5.1**
 - **Spring Data JPA**
 - **MySQL 8.4+**
-- **JWT (JJWT 0.12.3)**
+- **JWT (JJWT 0.12.6)** - RSA asymmetric key encryption
+- **Nimbus JOSE JWT 10.4** - JWK(JSON Web Key) support
 - **OpenAPI 3.0** - SpringDoc OpenAPI UI for interactive documentation
 - **Lombok**
 - **Gradle**
@@ -54,8 +55,7 @@ export GOOGLE_CLIENT_ID=your-google-client-id
 export GOOGLE_CLIENT_SECRET=your-google-client-secret
 export GOOGLE_REDIRECT_URI=http://localhost:8001/api/v1/auth/login/oauth2/code/google
 
-# JWT Configuration
-export JWT_SECRET_KEY=your-secret-key-here-minimum-256-bits
+# JWT Configuration (No longer needed JWT_SECRET_KEY due to RSA asymmetric key usage)
 ```
 
 ### 4. Run the Application
@@ -88,6 +88,28 @@ Once the application is running, you can access the interactive API documentatio
 ### Base URL
 ```
 http://localhost:8001/api/v1
+```
+
+### JWT Public Key Retrieval (JWK)
+**Endpoint:** `GET /.well-known/jwks.json`
+- **Action**: Provides public keys for JWT token verification in JWK(JSON Web Key) format.
+- **Usage**: External services can independently verify JWT tokens.
+```bash
+curl http://localhost:8001/.well-known/jwks.json
+```
+
+**Response:**
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "n": "...",
+      "e": "AQAB",
+      "kid": "civic-insights-auth-key"
+    }
+  ]
+}
 ```
 
 ### Authentication Endpoints
@@ -243,8 +265,7 @@ spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_
 spring.security.oauth2.client.registration.google.scope=openid,profile,email
 spring.security.oauth2.client.registration.google.redirect-uri=${GOOGLE_REDIRECT_URI}
 
-# JWT Configuration
-app.jwt.secret-key=${JWT_SECRET_KEY}
+# JWT Configuration (secret-key removed due to RSA asymmetric key usage)
 app.jwt.expiration-ms=86400000
 app.jwt.refresh-expiration=604800000
 
@@ -262,12 +283,14 @@ src/
 ├── main/
 │   ├── java/com/makersworld/civic_insights_auth/
 │   │   ├── config/
+│   │   │   ├── JwtKeyProvider.java
 │   │   │   ├── JwtProperties.java
 │   │   │   ├── OpenApiConfig.java
 │   │   │   ├── SecurityConfig.java
 │   │   │   └── WebClientConfig.java
 │   │   ├── controller/
 │   │   │   ├── AuthController.java
+│   │   │   ├── JwkController.java
 │   │   │   └── UserProfileController.java
 │   │   ├── dto/
 │   │   │   ├── AuthRequest.java
@@ -344,7 +367,8 @@ These fields remain empty until the user updates them via `/api/v1/profile`:
 ### JWT Token Structure
 - **Access Token**: Valid for 24 hours (86400000ms)
 - **Refresh Token**: Valid for 7 days (604800000ms)
-- **Algorithm**: HMAC SHA-256
+- **Algorithm**: RSA SHA-256 (RS256) - Asymmetric key encryption
+- **Public Key Endpoint**: `/.well-known/jwks.json`
 
 ### Protected Endpoints
 All `/api/v1/profile/**` endpoints require a valid JWT token in the Authorization header:
@@ -468,11 +492,11 @@ GOOGLE_CLIENT_ID=your-id GOOGLE_CLIENT_SECRET=your-secret ./gradlew bootRun
 ## 🚀 Deployment
 
 ### Production Considerations
-1. **Environment Variables**: Set all required environment variables
+1. **Environment Variables**: Set required OAuth2 environment variables
 2. **Database**: Configure production MySQL instance
 3. **HTTPS**: Enable SSL/TLS for production
 4. **CORS**: Update allowed origins for production frontend URL
-5. **JWT Secret**: Use a strong, randomly generated secret key (minimum 256 bits)
+5. **JWT Key Management**: Use external key management systems (KMS) to securely manage RSA key pairs in production
 
 ### Docker (Optional)
 ```dockerfile
@@ -487,8 +511,8 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 This auth service is designed to work in a microservices architecture:
 
 1. **Frontend Applications**: Use the OAuth2 and JWT endpoints for user authentication
-2. **Other Microservices**: Validate JWT tokens using the same secret key and validation logic
-3. **API Gateway**: Can route authentication requests to this service
+2. **Other Microservices**: Fetch public keys from `/.well-known/jwks.json` endpoint to independently verify JWT tokens
+3. **API Gateway**: Route authentication requests to this service or perform distributed verification using public keys
 
 ### Example Integration
 ```javascript
@@ -519,6 +543,14 @@ For questions or issues, please contact the development team or create an issue 
 
 ## 🆕 Recent Updates
 
+### v1.2.0 - RSA Asymmetric Key JWT Implementation Complete
+- ✅ **RSA Asymmetric Key JWT** Upgraded from symmetric to asymmetric key approach
+- ✅ **JWK Endpoint** `/.well-known/jwks.json` public key provision
+- ✅ **Enhanced Security** Improved security with RSA256 algorithm
+- ✅ **Microservice Friendly** Support for independent token verification in distributed environments
+- ✅ **Library Updates** Applied JJWT 0.12.6, Nimbus JOSE JWT 10.4
+- ✅ **Configuration Simplification** Simplified setup by removing JWT secret-key
+
 ### v1.1.0 - OpenAPI/Swagger Integration Complete
 - ✅ **SpringDoc OpenAPI UI** integration completed
 - ✅ **Interactive API Documentation** http://localhost:8001/swagger-ui.html
@@ -528,7 +560,14 @@ For questions or issues, please contact the development team or create an issue 
 - ✅ **Detailed Troubleshooting Guide** added
 - ✅ **Environment Variable Setup Guide** completed
 
-### Key Improvements
+### Key Improvements (v1.2.0)
+- **Security Architecture**: Upgraded JWT security model from symmetric to RSA asymmetric keys
+- **Distributed Verification**: Independent token verification across microservices through public key distribution
+- **Standards Compliance**: Implemented OAuth2/OpenID Connect JWK standard endpoints
+- **Operational Efficiency**: Simplified key management and reduced configuration complexity
+- **Scalability**: Enhanced token verification performance and security in distributed environments
+
+### Key Improvements (v1.1.0)
 - **API Documentation**: Complete interactive documentation compliant with OpenAPI 3.0 standards
 - **Developer Experience**: Direct API testing and JWT authentication in Swagger UI
 - **Error Handling**: Clear explanation of OAuth2 callback endpoint 400 errors

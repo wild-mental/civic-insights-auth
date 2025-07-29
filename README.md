@@ -5,7 +5,7 @@ Civic Insights 플랫폼을 위한 OAuth2 통합, JWT 토큰 관리, 사용자 �
 ## 🚀 기능
 
 - **OAuth2 인증** - Google OAuth2 통합
-- **JWT 토큰 관리** - 액세스 토큰 생성, 검증 및 갱신
+- **JWT 토큰 관리** - RSA 비대칭키 기반 액세스 토큰 생성, 검증 및 갱신
 - **사용자 프로필 관리** - 완전한 사용자 프로필 CRUD 작업
 - **마이크로서비스 아키텍처** - 전용 인증 서비스로 설계
 - **RESTful API** - 적절한 HTTP 상태 코드를 가진 깔끔한 REST 엔드포인트
@@ -20,7 +20,8 @@ Civic Insights 플랫폼을 위한 OAuth2 통합, JWT 토큰 관리, 사용자 �
 - **Spring Security 6.5.1**
 - **Spring Data JPA**
 - **MySQL 8.4+**
-- **JWT (JJWT 0.12.3)**
+- **JWT (JJWT 0.12.6)** - RSA 비대칭키 암호화
+- **Nimbus JOSE JWT 10.4** - JWK(JSON Web Key) 지원
 - **OpenAPI 3.0** - SpringDoc OpenAPI UI for interactive documentation
 - **Lombok**
 - **Gradle**
@@ -54,8 +55,7 @@ export GOOGLE_CLIENT_ID=your-google-client-id
 export GOOGLE_CLIENT_SECRET=your-google-client-secret
 export GOOGLE_REDIRECT_URI=http://localhost:8001/api/v1/auth/login/oauth2/code/google
 
-# JWT 설정
-export JWT_SECRET_KEY=your-secret-key-here-minimum-256-bits
+# JWT 설정 (RSA 비대칭키 사용으로 더 이상 JWT_SECRET_KEY 불필요)
 ```
 
 ### 4. 애플리케이션 실행
@@ -88,6 +88,28 @@ export JWT_SECRET_KEY=your-secret-key-here-minimum-256-bits
 ### 기본 URL
 ```
 http://localhost:8001/api/v1
+```
+
+### JWT 공개키 조회 (JWK)
+**엔드포인트:** `GET /.well-known/jwks.json`
+- **동작**: JWT 토큰 검증을 위한 공개키를 JWK(JSON Web Key) 형식으로 제공합니다.
+- **사용법**: 외부 서비스가 독립적으로 JWT 토큰을 검증할 수 있습니다.
+```bash
+curl http://localhost:8001/.well-known/jwks.json
+```
+
+**응답:**
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "n": "...",
+      "e": "AQAB",
+      "kid": "civic-insights-auth-key"
+    }
+  ]
+}
 ```
 
 ### 인증 엔드포인트
@@ -243,8 +265,7 @@ spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_
 spring.security.oauth2.client.registration.google.scope=openid,profile,email
 spring.security.oauth2.client.registration.google.redirect-uri=${GOOGLE_REDIRECT_URI}
 
-# JWT 설정
-app.jwt.secret-key=${JWT_SECRET_KEY}
+# JWT 설정 (RSA 비대칭키 사용으로 secret-key 제거됨)
 app.jwt.expiration-ms=86400000
 app.jwt.refresh-expiration=604800000
 
@@ -262,12 +283,14 @@ src/
 ├── main/
 │   ├── java/com/makersworld/civic_insights_auth/
 │   │   ├── config/
+│   │   │   ├── JwtKeyProvider.java
 │   │   │   ├── JwtProperties.java
 │   │   │   ├── OpenApiConfig.java
 │   │   │   ├── SecurityConfig.java
 │   │   │   └── WebClientConfig.java
 │   │   ├── controller/
 │   │   │   ├── AuthController.java
+│   │   │   ├── JwkController.java
 │   │   │   └── UserProfileController.java
 │   │   ├── dto/
 │   │   │   ├── AuthRequest.java
@@ -344,7 +367,8 @@ Google OAuth2 → 사용자 생성/업데이트 → UserProfile 생성 (신규 �
 ### JWT 토큰 구조
 - **액세스 토큰**: 24시간 유효 (86400000ms)
 - **리프레시 토큰**: 7일 유효 (604800000ms)
-- **알고리즘**: HMAC SHA-256
+- **알고리즘**: RSA SHA-256 (RS256) - 비대칭키 암호화
+- **공개키 엔드포인트**: `/.well-known/jwks.json`
 
 ### 보호된 엔드포인트
 모든 `/api/v1/profile/**` 엔드포인트는 Authorization 헤더에 유효한 JWT 토큰이 필요합니다:
@@ -468,11 +492,11 @@ curl http://localhost:8001/api/v1/auth/login/oauth2/code/google
 ## 🚀 배포
 
 ### 프로덕션 고려사항
-1. **환경 변수**: 필요한 모든 환경 변수를 설정하세요
+1. **환경 변수**: 필요한 OAuth2 환경 변수를 설정하세요
 2. **데이터베이스**: 프로덕션 MySQL 인스턴스를 구성하세요
 3. **HTTPS**: 프로덕션에서 SSL/TLS를 활성화하세요
 4. **CORS**: 프로덕션 프론트엔드 URL에 대해 허용된 origin을 업데이트하세요
-5. **JWT 시크릿**: 강력하고 무작위로 생성된 시크릿 키를 사용하세요 (최소 256비트)
+5. **JWT 키 관리**: 프로덕션에서는 외부 키 관리 시스템(KMS)을 사용하여 RSA 키 쌍을 안전하게 관리하세요
 
 ### Docker (선택사항)
 ```dockerfile
@@ -487,8 +511,8 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 이 인증 서비스는 마이크로서비스 아키텍처에서 작동하도록 설계되었습니다:
 
 1. **프론트엔드 애플리케이션**: 사용자 인증을 위해 OAuth2 및 JWT 엔드포인트를 사용
-2. **다른 마이크로서비스**: 동일한 시크릿 키와 검증 로직을 사용하여 JWT 토큰을 검증
-3. **API 게이트웨이**: 이 서비스로 인증 요청을 라우팅할 수 있음
+2. **다른 마이크로서비스**: `/.well-known/jwks.json` 엔드포인트에서 공개키를 가져와 JWT 토큰을 독립적으로 검증
+3. **API 게이트웨이**: 이 서비스로 인증 요청을 라우팅하거나 공개키를 사용하여 분산 검증 수행
 
 ### 통합 예제
 ```javascript
@@ -519,6 +543,14 @@ const profileResponse = await fetch('/api/v1/profile', {
 
 ## 🆕 최근 업데이트
 
+### v1.2.0 - RSA 비대칭키 JWT 구현 완료
+- ✅ **RSA 비대칭키 JWT** 대칭키에서 비대칭키 방식으로 업그레이드
+- ✅ **JWK 엔드포인트** `/.well-known/jwks.json` 공개키 제공
+- ✅ **보안 강화** RSA256 알고리즘 사용으로 보안성 향상
+- ✅ **마이크로서비스 친화적** 분산 환경에서 독립적 토큰 검증 지원
+- ✅ **라이브러리 업데이트** JJWT 0.12.6, Nimbus JOSE JWT 10.4 적용
+- ✅ **설정 단순화** JWT secret-key 제거로 설정 단순화
+
 ### v1.1.0 - OpenAPI/Swagger 통합 완료
 - ✅ **SpringDoc OpenAPI UI** 통합 완료
 - ✅ **대화형 API 문서** http://localhost:8001/swagger-ui.html
@@ -528,7 +560,14 @@ const profileResponse = await fetch('/api/v1/profile', {
 - ✅ **상세한 문제 해결 가이드** 추가
 - ✅ **환경 변수 설정 가이드** 완성
 
-### 주요 개선사항
+### 주요 개선사항 (v1.2.0)
+- **보안 아키텍처**: 대칭키에서 RSA 비대칭키로 JWT 보안 모델 업그레이드
+- **분산 검증**: 공개키 배포를 통한 마이크로서비스 독립적 토큰 검증
+- **표준 준수**: OAuth2/OpenID Connect JWK 표준 엔드포인트 구현
+- **운영 효율성**: 키 관리 단순화 및 설정 복잡도 감소
+- **확장성**: 분산 환경에서 토큰 검증 성능 및 보안성 향상
+
+### 주요 개선사항 (v1.1.0)
 - **API 문서화**: OpenAPI 3.0 표준 준수하는 완전한 대화형 문서
 - **개발자 경험**: Swagger UI에서 직접 API 테스트 및 JWT 인증
 - **오류 처리**: OAuth2 콜백 엔드포인트 400 오류에 대한 명확한 설명
