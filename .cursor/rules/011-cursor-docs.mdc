@@ -1,0 +1,23 @@
+---
+description: 
+globs: .cursor/docs/**/*
+alwaysApply: false
+---
+## Description: Defines guidelines for organizing documentation files to assist development and maintenance efforts.
+
+## Documentation Structure Guidelines:
+
+## Categories:
+- Developer Guides
+- System Architecture
+- API References
+- Setup & Deployment Manuals
+
+## Organization Rules:
+- Group documents by logical topics.
+- Use clear filenames and folder structures.
+- Maintain up-to-date cross-references.
+
+## Cross-Referencing:
+- Link related documents using relative paths.
+- Mention important documents in related code comments when applicable.

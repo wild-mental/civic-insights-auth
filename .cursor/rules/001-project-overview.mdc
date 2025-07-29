@@ -1,0 +1,43 @@
+# PROJECT OVERVIEW: Civic Insights Newsletter MVP
+
+## Vision
+뉴스레터 'Civic Insights'는 복잡한 세상의 변화를 핵심을 꿰뚫는 인사이트로 전달하는 플랫폼입니다. 사회 변화, 기술 트렌드, 정치 혁신의 중심에서 길어 올린 깊이 있는 분석과 전망을 제공하여, 독자들이 세상을 주도적으로 이해하고 더 나은 미래를 만드는 데 기여하고자 합니다. 단순한 뉴스 전달을 넘어, 생각의 틀을 확장하는 지적 동반자가 되는 것이 우리의 목표입니다.
+
+## Core Features
+MVP 웹사이트의 핵심 기능과 역할:
+- 랜딩 페이지: 뉴스레터의 정체성과 가치를 명확히 전달하는 첫인상 페이지
+- 콘텐츠 아카이브: 발행된 모든 콘텐츠를 카테고리별(시민참여, 메가트렌드, 기본소득)로 필터링하여 제공
+- 유/무료 콘텐츠 모델: 프리미엄 구독을 위한 페이월(Paywall) 기능으로 비즈니스 모델 검증
+- 구독 시스템: 이메일 리스트 확보를 위한 구독 신청 및 플랜 안내 기능
+
+## Target Audience
+뉴스레터의 핵심 타겟층:
+- Primary users: 사회 변화, 기술 트렌드, 정치 혁신에 관심이 많은 20~40대 지식 직업군
+- Secondary users: 깊이 있는 정보를 통해 세상의 변화를 주도적으로 이해하고 싶은 기획자, 연구자, 활동가
+
+## Project Goals
+MVP 단계의 구체적이고 측정 가능한 목표:
+- Goal 1: 뉴스레터의 정체성과 가치를 명확히 전달하는 브랜드 인지도 구축
+- Goal 2: 초기 구독자(이메일 리스트) 확보를 통한 사용자 베이스 구축
+- Goal 3: 유/무료 콘텐츠 모델의 시장 반응 테스트 및 비즈니스 모델 검증
+
+## Success Metrics
+프로젝트 성공을 측정하는 핵심 지표:
+- Metric 1: 사용자 체류 시간 (The duration that users stay on the site pages)
+- Metric 2: 신규 방문자 대비 구독 전환율 (The ratio of subscription registrations per new user visit)
+- Metric 3: 뉴스레터 구독자의 링크 클릭률 (The ratio of newsletter subscribers who click on links)
+- Metric 4: 매 주당 추가된 프리미엄 사용자 수 (Additional premium users per week)
+
+## Project Philosophy
+개발 원칙과 가치:
+- Emphasis on high maintainability and scalable architecture
+- Senior engineering practices and standards
+- Comprehensive documentation
+- MVP 우선 개발: 복잡한 구조를 지양하고 핵심 기능에 집중
+- 사용자 경험 최우선: 직관적이고 깔끔한 인터페이스 설계
+- 콘텐츠 중심 설계: 텍스트 가독성과 콘텐츠 접근성 최적화
+
+## See also:
+- [002-tech-stack.mdc](mdc:.cursor/rules/002-tech-stack.mdc) for implementation details
+- [003-development-guidelines.mdc](mdc:.cursor/rules/003-development-guidelines.mdc) for development standards
+- [Add your specific principles here]
