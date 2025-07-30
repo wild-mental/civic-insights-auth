@@ -20,7 +20,8 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    // JwtAuthenticationFilter는 더 이상 다른 빈에 의존하지 않으므로 직접 생성합니다.
+    // private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -42,7 +43,8 @@ public class SecurityConfig {
                .requestMatchers("/api/v1/profile/**").authenticated()
                .anyRequest().authenticated()
             )
-           .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+           // 헤더 기반 인증을 수행하는 필터를 UsernamePasswordAuthenticationFilter 앞에 추가합니다.
+           .addFilterBefore(new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         // JWT filter added for profile management endpoints
         // This service handles authentication, token generation, and user profile management
 
