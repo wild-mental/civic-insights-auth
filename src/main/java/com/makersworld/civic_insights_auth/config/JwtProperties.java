@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
  * 비대칭키 방식 사용으로 secretKey는 제거되었습니다.
  */
 @Component
-@ConfigurationProperties(prefix = "app.jwt")
+@ConfigurationProperties(prefix = "jwt")
 public class JwtProperties {
     
     private long expirationMs;
