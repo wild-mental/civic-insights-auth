@@ -41,7 +41,7 @@ public class GatewayOnlyFilter extends OncePerRequestFilter {
 
     // 허용된 내부 IP 주소들 (옵션)
     private static final List<String> ALLOWED_IPS = Arrays.asList(
-        "127.0.0.1", "localhost", "::1"  // 개발 환경이므로 게이트웨이 위치는 로컬 IP로 고정
+        "127.0.0.1"  // 개발 환경이므로 게이트웨이 위치는 로컬 IP (향후 실제 게이트웨이 위치로 변경 필요)
     );
 
     @Override
