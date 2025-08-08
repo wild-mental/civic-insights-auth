@@ -8,6 +8,7 @@ Civic Insights 플랫폼을 위한 OAuth2 통합, JWT 토큰 관리, 사용자 �
 - **JWT 토큰 관리** - RSA 비대칭키 기반 액세스 토큰 생성, 검증 및 갱신
 - **사용자 프로필 관리** - 완전한 사용자 프로필 CRUD 작업
 - **마이크로서비스 아키텍처** - 전용 인증 서비스로 설계
+- **Gateway Only Security** - API Gateway 전용 접근 제어 및 토큰 검증
 - **RESTful API** - 적절한 HTTP 상태 코드를 가진 깔끔한 REST 엔드포인트
 - **대화형 API 문서** - Swagger UI를 통한 완전한 OpenAPI 3.0 문서
 - **보안** - JWT 기반 인증을 포함한 Spring Security
@@ -55,7 +56,8 @@ export GOOGLE_CLIENT_ID=your-google-client-id
 export GOOGLE_CLIENT_SECRET=your-google-client-secret
 export GOOGLE_REDIRECT_URI=http://localhost:8001/api/v1/auth/login/oauth2/code/google
 
-# JWT 설정 (RSA 비대칭키 사용으로 더 이상 JWT_SECRET_KEY 불필요)
+# Gateway Security (API Gateway 전용 모드)
+export GATEWAY_SECRET_TOKEN=your-production-gateway-token
 ```
 
 ### 4. 애플리케이션 실행
@@ -243,6 +245,27 @@ CREATE TABLE `user_profiles` (
 
 ## 🔧 설정
 
+### Configuration Properties 패턴
+이 프로젝트는 Spring Boot의 `@ConfigurationProperties`를 사용하여 type-safe한 설정 관리를 구현합니다:
+
+**SecurityProperties.java**:
+```java
+@Data
+@Component
+@ConfigurationProperties(prefix = "app.security")
+public class SecurityProperties {
+    private boolean gatewayOnly;        // app.security.gateway-only
+    private String gatewayToken;        // app.security.gateway-token
+}
+```
+
+**장점**:
+- ✅ **Type Safety**: 컴파일 타임에 타입 검증
+- ✅ **IDE 지원**: 자동완성 및 문서화
+- ✅ **중앙화된 설정**: 하나의 클래스에서 관련 설정 관리
+- ✅ **환경별 설정**: 프로파일별로 다른 값 설정 가능
+- ✅ **Validation**: `@Valid` 어노테이션으로 검증 규칙 추가 가능
+
 ### Application Properties
 ```properties
 # 서버 설정
@@ -269,6 +292,10 @@ spring.security.oauth2.client.registration.google.redirect-uri=${GOOGLE_REDIRECT
 app.jwt.expiration-ms=86400000
 app.jwt.refresh-expiration=604800000
 
+# Gateway Only Security 설정
+app.security.gateway-only=true
+app.security.gateway-token=${GATEWAY_SECRET_TOKEN:civic-insights-gateway-v1}
+
 # SpringDoc OpenAPI 설정
 springdoc.swagger-ui.path=/swagger-ui.html
 springdoc.swagger-ui.enabled=true
@@ -283,10 +310,12 @@ src/
 ├── main/
 │   ├── java/com/makersworld/civic_insights_auth/
 │   │   ├── config/
+│   │   │   ├── GatewayOnlyFilter.java
 │   │   │   ├── JwtKeyProvider.java
 │   │   │   ├── JwtProperties.java
 │   │   │   ├── OpenApiConfig.java
 │   │   │   ├── SecurityConfig.java
+│   │   │   ├── SecurityProperties.java
 │   │   │   └── WebClientConfig.java
 │   │   ├── controller/
 │   │   │   ├── AuthController.java
@@ -376,6 +405,13 @@ Google OAuth2 → 사용자 생성/업데이트 → UserProfile 생성 (신규 �
 Authorization: Bearer <access_token>
 ```
 
+### Gateway Only Security
+- **게이트웨이 전용 모드**: API Gateway를 통한 접근만 허용
+- **헤더 검증**: `X-Gateway-Internal` 헤더의 토큰 값 검증
+- **우회 경로**: `/actuator/health`, `/error`, `/.well-known/jwks.json`
+- **환경 변수**: `GATEWAY_SECRET_TOKEN`으로 보안 토큰 설정
+- **개발 모드**: `app.security.gateway-only=false`로 비활성화 가능
+
 ### CORS 설정
 - **허용된 Origin**: `http://localhost:3000` (React 프론트엔드)
 - **허용된 메서드**: GET, POST, PUT, DELETE, OPTIONS
@@ -421,11 +457,13 @@ curl -X POST http://localhost:8001/api/v1/auth/google \
 echo $GOOGLE_CLIENT_ID
 echo $GOOGLE_CLIENT_SECRET
 echo $GOOGLE_REDIRECT_URI
+echo $GATEWAY_SECRET_TOKEN
 
 # 올바른 설정 예시
 export GOOGLE_CLIENT_ID="실제_Google_클라이언트_ID"
 export GOOGLE_CLIENT_SECRET="실제_Google_클라이언트_시크릿"
 export GOOGLE_REDIRECT_URI="http://localhost:8001/api/v1/auth/login/oauth2/code/google"
+export GATEWAY_SECRET_TOKEN="your-production-gateway-token"
 
 # 환경 변수와 함께 애플리케이션 실행
 GOOGLE_CLIENT_ID=your-id GOOGLE_CLIENT_SECRET=your-secret ./gradlew bootRun
@@ -542,37 +580,23 @@ const profileResponse = await fetch('/api/v1/profile', {
 ---
 
 ## 🆕 최근 업데이트
+### v1.3.0 - Gateway Only Security 및 Configuration Properties 패턴 적용
+- ✅ **Gateway Only Security** API Gateway 전용 접근 제어 구현
+- ✅ **Type-Safe 설정 관리** `@ConfigurationProperties` 패턴으로 SecurityProperties 구현
+- ✅ **환경 변수 관리** `GATEWAY_SECRET_TOKEN` 환경변수로 보안 토큰을 안전하게 코드베이스와 분리
+- ✅ **IDE 지원 향상** Configuration Metadata 자동 생성으로 IntelliSense 지원
 
 ### v1.2.0 - RSA 비대칭키 JWT 구현 완료
-- ✅ **RSA 비대칭키 JWT** 대칭키에서 비대칭키 방식으로 업그레이드
-- ✅ **JWK 엔드포인트** `/.well-known/jwks.json` 공개키 제공
-- ✅ **보안 강화** RSA256 알고리즘 사용으로 보안성 향상
-- ✅ **마이크로서비스 친화적** 분산 환경에서 독립적 토큰 검증 지원
+- ✅ **RSA 비대칭키 JWT** 대칭키에서 RSA256 알고리즘으로 업그레이드
+- ✅ **JWK 엔드포인트** `/.well-known/jwks.json` 공개키 제공으로 분산 검증 지원
+- ✅ **마이크로서비스 친화적** 독립적 토큰 검증 및 키 관리 단순화
 - ✅ **라이브러리 업데이트** JJWT 0.12.6, Nimbus JOSE JWT 10.4 적용
-- ✅ **설정 단순화** JWT secret-key 제거로 설정 단순화
 
 ### v1.1.0 - OpenAPI/Swagger 통합 완료
-- ✅ **SpringDoc OpenAPI UI** 통합 완료
-- ✅ **대화형 API 문서** http://localhost:8001/swagger-ui.html
-- ✅ **JWT 인증 통합** Swagger UI에서 직접 토큰 테스트 가능
-- ✅ **OAuth2 엔드포인트 최적화** 및 오류 처리 개선
-- ✅ **보안 설정 업데이트** SpringDoc 엔드포인트 지원
-- ✅ **상세한 문제 해결 가이드** 추가
-- ✅ **환경 변수 설정 가이드** 완성
-
-### 주요 개선사항 (v1.2.0)
-- **보안 아키텍처**: 대칭키에서 RSA 비대칭키로 JWT 보안 모델 업그레이드
-- **분산 검증**: 공개키 배포를 통한 마이크로서비스 독립적 토큰 검증
-- **표준 준수**: OAuth2/OpenID Connect JWK 표준 엔드포인트 구현
-- **운영 효율성**: 키 관리 단순화 및 설정 복잡도 감소
-- **확장성**: 분산 환경에서 토큰 검증 성능 및 보안성 향상
-
-### 주요 개선사항 (v1.1.0)
-- **API 문서화**: OpenAPI 3.0 표준 준수하는 완전한 대화형 문서
-- **개발자 경험**: Swagger UI에서 직접 API 테스트 및 JWT 인증
-- **오류 처리**: OAuth2 콜백 엔드포인트 400 오류에 대한 명확한 설명
-- **설정 가이드**: Google Cloud Console 및 환경 변수 설정 상세 가이드
-- **보안 강화**: 올바른 엔드포인트만 공개하도록 보안 설정 최적화
+- ✅ **SpringDoc OpenAPI UI** 대화형 API 문서 (http://localhost:8001/swagger-ui.html)
+- ✅ **JWT 인증 통합** Swagger UI에서 Bearer 토큰 테스트 지원
+- ✅ **OAuth2 엔드포인트 최적화** 오류 처리 및 Google Cloud Console 설정 가이드
+- ✅ **OpenAPI 3.0 표준** JSON/YAML 형식 스펙 제공 및 보안 스키마 정의
 
 ---
 
