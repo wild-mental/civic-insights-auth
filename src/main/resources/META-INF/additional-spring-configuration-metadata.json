@@ -1,0 +1,28 @@
+{
+  "properties": [
+    {
+      "name": "jwt.expiration-ms",
+      "type": "java.lang.String",
+      "description": "JWT 발급 시 토큰 만료 시간을 설정합니다.",
+      "defaultValue": "86400000"
+    },
+    {
+      "name": "jwt.refresh-expiration",
+      "type": "java.lang.String",
+      "description": "JWT 발급 시 리프레시 토큰 만료 시간을 설정합니다.",
+      "defaultValue": "604800000"
+    },
+    {
+      "name": "app.security.gateway-only",
+      "type": "java.lang.Boolean",
+      "description": "API Gateway 전용 모드 활성화 여부",
+      "defaultValue": "true"
+    },
+    {
+      "name": "app.security.gateway-token",
+      "type": "java.lang.String",
+      "description": "API Gateway 전용 모드 토큰",
+      "defaultValue": "civic-insights-gateway-v1"
+    }
+  ]
+}
