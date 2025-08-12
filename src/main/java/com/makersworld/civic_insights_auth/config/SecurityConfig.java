@@ -32,6 +32,7 @@ public class SecurityConfig {
            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
            .authorizeHttpRequests(auth -> auth
                .requestMatchers(
+                   "/.well-known/jwks.json",
                    "/api/v1/auth/**", 
                    "/error",
                    "/swagger-ui/**",
@@ -51,7 +52,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+        // Gateway로부터의 요청만 허용 (보안 강화)
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8000"));
+        // 개발 편의상 FE 주소도 추가하는 경우 아래 주석 해제
+        // configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:5173", "http://localhost:9002"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

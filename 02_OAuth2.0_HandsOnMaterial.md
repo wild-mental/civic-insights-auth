@@ -5,6 +5,8 @@
 
 Spring Boot를 사용하여 Google OAuth 2.0 기반의 인증 마이크로서비스를 처음부터 끝까지 구축하는 과정을 상세하게 알아봅시다.
 
+> - [참고] 본 단계 구현 후, 후속 단계인 분산 인증을 위한 추가 개발 단계에서 API Gateway(8000) 경유를 기본으로 설정합니다. 따라서 OAuth2 redirect-uri는 `http://localhost:8000/api/auth/login/oauth2/code/google`(8000포트, 게이트웨이) → (8001포트, 인증서버) `/api/v1/auth/login/oauth2/code/google`로 프록시합니다.
+
 이 프로젝트를 통해 여러분은 최신 기술 스택을 경험하고, 실제 현업에서 사용되는 아키텍처와 구현 방식을 익혀 멋진 포트폴리오를 완성할 수 있습니다.
 
 ---
@@ -150,9 +152,9 @@ spring.security.oauth2.client.registration.google.scope=openid,profile,email
 spring.security.oauth2.client.registration.google.redirect-uri=${GOOGLE_REDIRECT_URI:http://localhost:8001/api/v1/auth/login/oauth2/code/google}
 
 # --- JWT Configuration ---
-app.jwt.secret-key=${JWT_SECRET_KEY:mySecretKey123456789012345678901234567890}
-app.jwt.expiration-ms=86400000 # 24 hours
-app.jwt.refresh-expiration=604800000 # 7 days
+jwt.secret-key=${JWT_SECRET_KEY:mySecretKey123456789012345678901234567890}
+jwt.expiration-ms=86400000 # 24 hours
+jwt.refresh-expiration=604800000 # 7 days
 
 # --- SpringDoc OpenAPI (Swagger) Configuration ---
 springdoc.swagger-ui.path=/swagger-ui.html
@@ -166,7 +168,7 @@ springdoc.swagger-ui.try-it-out-enabled=true
 -   `spring.datasource.*`: 로컬에 설치된 MySQL 데이터베이스에 연결하기 위한 정보입니다.
 -   `spring.jpa.hibernate.ddl-auto=update`: `User` 같은 엔티티 클래스가 변경되면, 서버가 재시작될 때 데이터베이스 테이블 구조를 자동으로 업데이트해줍니다.
 -   `spring.security.oauth2.client.registration.google.*`: Google Cloud Console에서 발급받은 OAuth2 클라이언트 정보를 설정합니다. 이 정보가 있어야 Google과 통신할 수 있습니다.
--   `app.jwt.*`: JWT 토큰을 암호화하고 서명하는 데 사용될 비밀 키와 만료 시간을 설정합니다.
+-   `jwt.*`: JWT 토큰을 암호화하고 서명하는 데 사용될 비밀 키와 만료 시간을 설정합니다.
 -   `springdoc.swagger-ui.*`: Swagger UI의 접속 경로와 동작 방식을 설정합니다.
 
 ### 1.3. `CivicInsightsAuthApplication.java` - 애플리케이션 시작점
@@ -1187,6 +1189,7 @@ export GOOGLE_CLIENT_SECRET="your-actual-google-client-secret"
 
 앞으로 기능을 확장해보세요!
 -   다른 소셜 로그인(Facebook, Kakao) 추가
+-   JWT 핸들링을 MSA 분산인증 방식으로 변경
 -   이메일/비밀번호 기반의 로컬 회원가입 기능
 -   비밀번호 암호화 (BCrypt)
 -   더 세분화된 역할 기반 접근 제어 (RBAC)

@@ -1,0 +1,40 @@
+{
+  "properties": [
+    {
+      "name": "frontend.redirect-base",
+      "type": "java.lang.String",
+      "description": "프론트엔드 최종 리다이렉트 기본 URL. OAuth2 오류 등 최종 사용자 안내 경로에 사용됩니다.",
+      "defaultValue": "http://localhost:9002"
+    },
+    {
+      "name": "frontend.session-post-url",
+      "type": "java.lang.String",
+      "description": "Auth 콜백이 자동 제출 HTML 폼을 통해 토큰을 POST할 Next API Route URL.",
+      "defaultValue": "http://localhost:9002/api/session"
+    },
+    {
+      "name": "jwt.expiration-ms",
+      "type": "java.lang.String",
+      "description": "JWT 발급 시 토큰 만료 시간을 설정합니다.",
+      "defaultValue": "86400000"
+    },
+    {
+      "name": "jwt.refresh-expiration",
+      "type": "java.lang.String",
+      "description": "JWT 발급 시 리프레시 토큰 만료 시간을 설정합니다.",
+      "defaultValue": "604800000"
+    },
+    {
+      "name": "app.security.gateway-only",
+      "type": "java.lang.Boolean",
+      "description": "API Gateway 전용 모드 활성화 여부",
+      "defaultValue": "true"
+    },
+    {
+      "name": "app.security.gateway-token",
+      "type": "java.lang.String",
+      "description": "API Gateway 전용 모드 토큰",
+      "defaultValue": "civic-insights-gateway-v1"
+    }
+  ]
+}
