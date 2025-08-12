@@ -494,7 +494,7 @@ import org.springframework.stereotype.Component;
  * 비대칭키 방식 사용으로 secretKey는 제거되었습니다.
  */
 @Component
-@ConfigurationProperties(prefix = "app.jwt")
+@ConfigurationProperties(prefix = "jwt")
 public class JwtProperties {
     
     private long expirationMs;
@@ -542,16 +542,16 @@ public class JwtProperties {
 #### Before (대칭키)
 ```properties
 # JWT 설정
-app.jwt.secret-key=${JWT_SECRET_KEY:mySecretKey123456789012345678901234567890}
-app.jwt.expiration-ms=86400000
-app.jwt.refresh-expiration=604800000
+jwt.secret-key=${JWT_SECRET_KEY:mySecretKey123456789012345678901234567890}
+jwt.expiration-ms=86400000
+jwt.refresh-expiration=604800000
 ```
 
 #### After (비대칭키)
 ```properties
 # JWT 설정 (RSA 비대칭키 사용으로 secret-key 제거됨)
-app.jwt.expiration-ms=86400000
-app.jwt.refresh-expiration=604800000
+jwt.expiration-ms=86400000
+jwt.refresh-expiration=604800000
 ```
 
 ### 🔐 토큰 서명 방식 변화
@@ -611,8 +611,8 @@ implementation 'com.nimbusds:nimbus-jose-jwt:10.4'
 #### 애플리케이션 설정 (application.properties)
 ```properties
 # JWT 설정 (RSA 비대칭키 사용으로 secret-key 제거됨)
-app.jwt.expiration-ms=86400000
-app.jwt.refresh-expiration=604800000
+jwt.expiration-ms=86400000
+jwt.refresh-expiration=604800000
 ```
 
 ### 🧪 4.2 테스트해보기
@@ -736,8 +736,8 @@ private String privateKeyPath;
 #### 토큰 만료 시간
 ```properties
 # ✅ 적절한 만료 시간 설정
-app.jwt.expiration-ms=900000        # 15분 (액세스 토큰)
-app.jwt.refresh-expiration=604800000 # 7일 (리프레시 토큰)
+jwt.expiration-ms=900000        # 15분 (액세스 토큰)
+jwt.refresh-expiration=604800000 # 7일 (리프레시 토큰)
 ```
 
 #### 예외 처리

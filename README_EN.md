@@ -1,579 +1,193 @@
 # Civic Insights Auth Service
 
-A Spring Boot authentication microservice that provides OAuth2 integration, JWT token management, and user profile services for the Civic Insights platform.
+A Spring Boot authentication microservice providing OAuth2 (Google), JWT, and user profile features. Since v1.3.0, the service assumes API Gateway traversal (Gateway Only Security) by default.
 
-## 🚀 Features
-
-- **OAuth2 Authentication** - Google OAuth2 integration
-- **JWT Token Management** - RSA asymmetric key-based access token generation, validation, and refresh
-- **User Profile Management** - Complete user profile CRUD operations
-- **Microservice Architecture** - Designed as a dedicated auth service
-- **RESTful API** - Clean REST endpoints with proper HTTP status codes
-- **Interactive API Documentation** - Complete OpenAPI 3.0 documentation with Swagger UI
-- **Security** - Spring Security with JWT-based authentication
-- **Database Integration** - MySQL with JPA/Hibernate
+## 🚀 Key Features
+- OAuth2 (Google): Server-driven and client-driven flows
+- JWT (RS256): Issue/validate access and refresh tokens with RSA asymmetric keys
+- JWK Public Keys: Provide JWK Set at `/.well-known/jwks.json` (for distributed verification)
+- User Profile: Authenticated user profile read/update APIs
+- Gateway Only Security: Enforce internal gateway-only access via `X-Gateway-Internal` header
+- Swagger UI: Interactive OpenAPI documentation
 
 ## 🛠 Tech Stack
-
-- **Java 17**
-- **Spring Boot 3.5.3**
-- **Spring Security 6.5.1**
-- **Spring Data JPA**
-- **MySQL 8.4+**
-- **JWT (JJWT 0.12.6)** - RSA asymmetric key encryption
-- **Nimbus JOSE JWT 10.4** - JWK(JSON Web Key) support
-- **OpenAPI 3.0** - SpringDoc OpenAPI UI for interactive documentation
-- **Lombok**
-- **Gradle**
+- Java 17
+- Spring Boot 3.5.4
+- Spring Web, Spring Security, Spring Data JPA
+- MySQL 8.4+
+- JJWT 0.12.6, Nimbus JOSE JWT 10.4
+- SpringDoc OpenAPI UI, Lombok, Gradle
 
 ## 📋 Prerequisites
+- Java 17+
+- MySQL 8.4+
+- Gradle (wrapper included)
 
-- Java 17 or higher
-- MySQL 8.4 or higher
-- Gradle 8.14.3 or higher (included via wrapper)
-
-## ⚙️ Installation & Setup
-
-### 1. Clone the Repository
+## ⚙️ Installation & Run
+### 1) Clone Repository
 ```bash
 git clone <repository-url>
 cd civic-insights-auth
 ```
 
-### 2. Database Setup
-Create a MySQL database:
+### 2) Prepare Database
 ```sql
 CREATE DATABASE civic_insights;
 ```
 
-### 3. Environment Variables
-Set up the following environment variables or update `application.properties`:
-
+### 3) Environment Variables
 ```bash
 # Google OAuth2
 export GOOGLE_CLIENT_ID=your-google-client-id
 export GOOGLE_CLIENT_SECRET=your-google-client-secret
-export GOOGLE_REDIRECT_URI=http://localhost:8001/api/v1/auth/login/oauth2/code/google
+# Gateway-based callback by default (can be overridden)
+export GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/login/oauth2/code/google
 
-# JWT Configuration (No longer needed JWT_SECRET_KEY due to RSA asymmetric key usage)
+# Gateway Only Security
+export GATEWAY_SECRET_TOKEN=your-production-gateway-token
+
+# Frontend integration (server-driven flow hand-off target)
+export FRONTEND_BASE_URL=http://localhost:9002
+export FRONTEND_SESSION_POST_URL=http://localhost:9002/api/session
 ```
 
-### 4. Run the Application
+### 4) Run
 ```bash
 ./gradlew bootRun
 ```
+Service starts at `http://localhost:8001`.
 
-The service will start on `http://localhost:8001`
+### 5) Swagger UI
+`http://localhost:8001/swagger-ui.html`
 
-### 5. Access Swagger UI
-Once the application is running, you can access the interactive API documentation at:
-- **Swagger UI**: http://localhost:8001/swagger-ui.html
-
-## 📚 API Documentation
-
-### 🌐 Interactive API Documentation (Swagger UI)
-**Swagger UI**: http://localhost:8001/swagger-ui.html
-- Complete interactive documentation for all API endpoints
-- "Try it out" functionality to test APIs directly
-- JWT authentication integration (use Authorize button)
-- Request/response schemas and examples provided
-- **Real-time API Testing**: Test all endpoints directly in the browser
-
-### 📋 OpenAPI Specification
-- **JSON format**: http://localhost:8001/v3/api-docs
-- **YAML format**: http://localhost:8001/v3/api-docs.yaml
-- **SpringDoc OpenAPI UI**: Compliant with latest OpenAPI 3.0 standards
-- **Security Schemas**: JWT Bearer token authentication support
-
-### Base URL
-```
-http://localhost:8001/api/v1
-```
-
-### JWT Public Key Retrieval (JWK)
-**Endpoint:** `GET /.well-known/jwks.json`
-- **Action**: Provides public keys for JWT token verification in JWK(JSON Web Key) format.
-- **Usage**: External services can independently verify JWT tokens.
-```bash
-curl http://localhost:8001/.well-known/jwks.json
-```
-
-**Response:**
-```json
-{
-  "keys": [
-    {
-      "kty": "RSA",
-      "n": "...",
-      "e": "AQAB",
-      "kid": "civic-insights-auth-key"
-    }
-  ]
-}
-```
-
-### Authentication Endpoints
-
-#### Initiate Google OAuth2 Login (Server-driven)
-**Endpoint:** `GET /auth/google`
-- **Action**: Accessing this endpoint will immediately redirect the user to the Google login and consent screen.
-- **Usage**: Use this as the target for a "Login with Google" button in your frontend.
-  ```html
-  <a href="http://localhost:8001/api/v1/auth/google">Login with Google</a>
-  ```
-
-#### Issue Google OAuth2 Token (Client-driven)
-**Endpoint:** `POST /auth/google/token`
-- **Action**: The client (e.g., a mobile app) sends an `authorization_code` it obtained directly to the server to get JWT tokens.
-```bash
-curl -X POST http://localhost:8001/api/v1/auth/google/token \
-  -H "Content-Type: application/json" \
-  -d '{"code": "google_auth_code"}'
-```
-
-**Response (on success):**
-```json
-{
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "tokenType": "Bearer",
-  "expiresIn": 86400,
-  "email": "user@example.com",
-  "name": "John Doe",
-  "role": "USER"
-}
-```
-
-#### Google OAuth2 Callback (Internal Use)
-**Endpoint:** `GET /auth/login/oauth2/code/google?code={auth_code}`
-- **Action**: After Google authentication, Google redirects the user to this endpoint. The server receives the `code` and handles the token exchange internally.
-- **⚠️ Important**: This endpoint is not meant to be called directly by users. It is normal for it to return a 400 error during manual testing.
-
-**Actual Usage Flow (Server-driven)**:
-```
-1. User: Clicks on GET /auth/google
-2. Server: Responds with a 302 redirect to the Google login page
-3. User: Authenticates and consents on Google
-4. Google: Redirects user back to GET /auth/login/oauth2/code/google with a code
-5. Server: Issues JWT and provides it to the client (e.g., via another redirect)
-```
-
-#### Refresh Token
-**Endpoint:** `POST /auth/refresh`
-```bash
-curl -X POST http://localhost:8001/api/v1/auth/refresh \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "refreshToken=your_refresh_token"
-```
-
-### Profile Management Endpoints
-
-#### Get User Profile
-**Endpoint:** `GET /profile`
-```bash
-curl -H "Authorization: Bearer <access_token>" \
-  http://localhost:8001/api/v1/profile
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "email": "user@example.com",
-  "name": "John Doe",
-  "bio": "Software Engineer",
-  "location": "Seoul, Korea",
-  "website": "https://johndoe.com",
-  "phoneNumber": "+82-10-1234-5678",
-  "avatarUrl": "https://example.com/avatar.jpg"
-}
-```
-
-#### Update User Profile
-**Endpoint:** `PUT /profile`
-```bash
-curl -X PUT http://localhost:8001/api/v1/profile \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "bio": "Updated bio",
-    "location": "Busan, Korea",
-    "website": "https://newsite.com",
-    "phoneNumber": "+82-10-9876-5432",
-    "avatarUrl": "https://example.com/new-avatar.jpg"
-  }'
-```
-
-## 🗄️ Database Schema
-
-### Users Table
-```sql
-CREATE TABLE `users` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `email` VARCHAR(255) NOT NULL,
-  `password` VARCHAR(255) NULL,
-  `name` VARCHAR(255) NOT NULL,
-  `provider` VARCHAR(50) NOT NULL,
-  `provider_id` VARCHAR(255) NULL,
-  `role` VARCHAR(50) NOT NULL,
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `uk_email` (`email` ASC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
-
-### User Profiles Table
-```sql
-CREATE TABLE `user_profiles` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `bio` TEXT NULL,
-  `location` VARCHAR(255) NULL,
-  `website` VARCHAR(255) NULL,
-  `phone_number` VARCHAR(50) NULL,
-  `avatar_url` VARCHAR(500) NULL,
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `uk_user_id` (`user_id` ASC),
-  CONSTRAINT `fk_user_profiles_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
-
-## 🔧 Configuration
-
-### Application Properties
+## 🔧 Configuration Summary (`application.properties`)
 ```properties
-# Server Configuration
+# Server
 server.port=8001
 
-# Database Configuration
+# DB
 spring.datasource.url=jdbc:mysql://localhost:3312/civic_insights
 spring.datasource.username=root
 spring.datasource.password=root
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 
-# JPA Configuration
+# JPA
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
 
-# OAuth2 Configuration
-spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
-spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
+# OAuth2 (Gateway callback default)
+spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID:your-google-client-id}
+spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET:your-google-client-secret}
 spring.security.oauth2.client.registration.google.scope=openid,profile,email
-spring.security.oauth2.client.registration.google.redirect-uri=${GOOGLE_REDIRECT_URI}
+spring.security.oauth2.client.registration.google.redirect-uri=${GOOGLE_REDIRECT_URI:http://localhost:8000/api/auth/login/oauth2/code/google}
 
-# JWT Configuration (secret-key removed due to RSA asymmetric key usage)
-app.jwt.expiration-ms=86400000
-app.jwt.refresh-expiration=604800000
+# JWT (RS256)
+jwt.expiration-ms=86400000
+jwt.refresh-expiration=604800000
 
-# SpringDoc OpenAPI Configuration
+# Gateway Only Security
+app.security.gateway-only=true
+app.security.gateway-token=${GATEWAY_SECRET_TOKEN:civic-insights-gateway-v1}
+
+# Frontend redirect/hand-off (server-driven flow)
+frontend.redirect-base=${FRONTEND_BASE_URL:http://localhost:9002}
+frontend.session-post-url=${FRONTEND_SESSION_POST_URL:http://localhost:9002/api/session}
+
+# OpenAPI
 springdoc.swagger-ui.path=/swagger-ui.html
-springdoc.swagger-ui.enabled=true
 springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.enabled=true
 springdoc.swagger-ui.try-it-out-enabled=true
 ```
 
-## 🏗️ Project Structure
+## 🔐 Security Overview
+### JWT
+- Algorithm: RS256
+- Public key: `GET /.well-known/jwks.json`
 
+### Gateway Only Security (v1.3.0)
+- All external traffic must go through the API Gateway.
+- Gateway injects `X-Gateway-Internal: <secret>` header into requests.
+- Auth service validates the header; direct access is rejected with 403 (Forbidden).
+- Env var: Externalize secret via `GATEWAY_SECRET_TOKEN`.
+- Default allowed CORS origin: `http://localhost:8000` (Gateway).
+
+Nginx example:
+```nginx
+location /api/auth/ {
+  proxy_pass http://localhost:8001/api/v1/auth/;
+  proxy_set_header X-Gateway-Internal "${GATEWAY_SECRET_TOKEN}";
+}
+```
+
+## 🌐 Endpoint Overview
+Base URL: `http://localhost:8001/api/v1`
+
+### JWK
+- `GET /.well-known/jwks.json` JWK Set
+
+### Auth
+- `GET  /auth/google` Redirect to Google login (server-driven)
+- `POST /auth/google/token` Issue JWT with auth code (client-driven)
+- `GET  /auth/login/oauth2/code/google` Google callback (internal)
+  - On success, returns auto-submitting HTML form posting tokens to `FRONTEND_SESSION_POST_URL` (prevents URL exposure)
+- `POST /auth/refresh` Refresh tokens
+
+### Profile
+- `GET  /profile` Get my profile (requires auth)
+- `PUT  /profile` Update my profile (requires auth)
+
+## 🧪 Testing
+### Gateway header requirement
+```bash
+# Direct access (expected to be blocked)
+curl http://localhost:8001/api/v1/profile
+
+# With Gateway header (passes filter; may 401/403 without JWT)
+curl -H "X-Gateway-Internal: ${GATEWAY_SECRET_TOKEN}" http://localhost:8001/api/v1/profile
+```
+
+### Swagger UI
+Test protected APIs with Bearer tokens at `http://localhost:8001/swagger-ui.html`.
+
+## 🏗️ Project Structure
 ```
 src/
 ├── main/
 │   ├── java/com/makersworld/civic_insights_auth/
 │   │   ├── config/
+│   │   │   ├── GatewayOnlyFilter.java
 │   │   │   ├── JwtKeyProvider.java
 │   │   │   ├── JwtProperties.java
 │   │   │   ├── OpenApiConfig.java
 │   │   │   ├── SecurityConfig.java
+│   │   │   ├── SecurityProperties.java
 │   │   │   └── WebClientConfig.java
 │   │   ├── controller/
 │   │   │   ├── AuthController.java
 │   │   │   ├── JwkController.java
 │   │   │   └── UserProfileController.java
-│   │   ├── dto/
-│   │   │   ├── AuthRequest.java
-│   │   │   ├── AuthResponse.java
-│   │   │   ├── GoogleTokenResponse.java
-│   │   │   ├── GoogleUserInfoResponse.java
-│   │   │   ├── UpdateProfileRequest.java
-│   │   │   └── UserProfileDto.java
-│   │   ├── enums/
-│   │   │   ├── Provider.java
-│   │   │   └── Role.java
-│   │   ├── model/
-│   │   │   ├── User.java
-│   │   │   └── UserProfile.java
-│   │   ├── repository/
-│   │   │   ├── UserProfileRepository.java
-│   │   │   └── UserRepository.java
-│   │   ├── security/
-│   │   │   └── JwtAuthenticationFilter.java
-│   │   ├── service/
-│   │   │   ├── AuthService.java
-│   │   │   ├── GoogleOAuth2Service.java
-│   │   │   ├── JwtService.java
-│   │   │   ├── UserProfileService.java
-│   │   │   └── UserService.java
+│   │   ├── dto/ ...
+│   │   ├── enums/ ...
+│   │   ├── model/ ...
+│   │   ├── repository/ ...
+│   │   ├── security/JwtAuthenticationFilter.java
+│   │   ├── service/ ...
 │   │   └── CivicInsightsAuthApplication.java
 │   └── resources/
 │       ├── application.properties
 │       └── schema.sql
-└── test/
-    └── java/com/makersworld/civic_insights_auth/
-        └── CivicInsightsAuthApplicationTests.java
+└── test/ ...
 ```
-
-## 👤 User Profile Behavior
-
-### OAuth2 Authentication Flow
-When a user authenticates via Google OAuth2:
-
-1. **User Record**: Creates or updates the `users` table with:
-   - Email, name, provider info
-   - Updates existing user's name if account already exists
-
-2. **User Profile**: **Automatically created for new users**
-   - Profile records are created **immediately** during OAuth2 authentication
-   - Pre-populated with available Google data (profile picture)
-   - Other profile fields (bio, location, website, etc.) start as `null`
-   - Existing users: Profile is NOT modified, preserving user customizations
-
-### Profile Creation Timeline
-```
-Google OAuth2 → User created/updated → UserProfile created (new users only) → JWT issued
-                                            ↓
-                                Profile ready with avatar from Google
-```
-
-### Auto-Populated Google Data
-For new users, the following Google data is automatically saved to the profile:
-- ✅ **Profile picture URL** (avatarUrl field)
-- ✅ **User name** (saved to User table)
-- ✅ **Email** (saved to User table)
-
-### Manual Profile Fields
-These fields remain empty until the user updates them via `/api/v1/profile`:
-- Bio
-- Location  
-- Website
-- Phone number
-
-**Note**: Existing users' profiles are never automatically modified to preserve their customizations. Only new registrations get auto-populated data.
-
-## 🔐 Security
-
-### JWT Token Structure
-- **Access Token**: Valid for 24 hours (86400000ms)
-- **Refresh Token**: Valid for 7 days (604800000ms)
-- **Algorithm**: RSA SHA-256 (RS256) - Asymmetric key encryption
-- **Public Key Endpoint**: `/.well-known/jwks.json`
-
-### Protected Endpoints
-All `/api/v1/profile/**` endpoints require a valid JWT token in the Authorization header:
-```
-Authorization: Bearer <access_token>
-```
-
-### CORS Configuration
-- **Allowed Origins**: `http://localhost:3000` (React frontend)
-- **Allowed Methods**: GET, POST, PUT, DELETE, OPTIONS
-- **Credentials**: Enabled
-
-## 🧪 Testing
-
-### Run Tests
-```bash
-./gradlew test
-```
-
-### Manual API Testing
-1. **Using Swagger UI (Recommended)**: http://localhost:8001/swagger-ui.html
-   - Test APIs directly in the browser
-   - Authenticate with JWT tokens to test protected endpoints
-   
-2. **Using cURL**: Use the provided curl examples
-
-3. **API Clients**: Import OpenAPI specification into Postman/Insomnia
-
-### 🔍 OAuth2 Endpoint Testing Guide
-
-#### ✅ Testable Endpoints
-```bash
-# Google OAuth2 Login (POST method)
-curl -X POST http://localhost:8001/api/v1/auth/google \
-  -H "Content-Type: application/json" \
-  -d '{"code": "real_google_auth_code"}'
-
-# Token Refresh
-curl -X POST http://localhost:8001/api/v1/auth/refresh \
-  -d "refreshToken=your_refresh_token"
-
-# User Profile (JWT token required)
-curl -H "Authorization: Bearer <access_token>" \
-  http://localhost:8001/api/v1/profile
-```
-
-#### ⚠️ OAuth2 Callback Endpoint Notes
-```bash
-# This endpoint returns 400 errors (normal behavior)
-curl http://localhost:8001/api/v1/auth/login/oauth2/code/google
-
-# Reason: Google OAuth2 dedicated endpoint, requires real auth codes
-# Not for manual testing, only for Google OAuth2 flows
-```
-
-**Why OAuth2 callback endpoint returns 400 errors**:
-- 🔒 **Security Design**: Rejects invalid requests
-- 📋 **OAuth2 Specification**: Google OAuth2 codes are one-time use and cryptographically secure
-- 🛡️ **Input Validation**: Random test strings should be rejected
-
-**Real Google OAuth2 Flow**:
-1. User clicks "Login with Google"
-2. Redirect to Google consent screen
-3. User grants permissions
-4. Google calls callback endpoint with real auth code
-5. Service returns JWT tokens
-
-### 🛠️ Common Troubleshooting
-
-#### Q: OAuth2 callback endpoint returns 400 errors
-**A**: This is normal behavior!
-```bash
-# ❌ Testing like this returns 400 errors (expected)
-curl http://localhost:8001/api/v1/auth/login/oauth2/code/google
-
-# ✅ Use POST endpoint instead
-curl -X POST http://localhost:8001/api/v1/auth/google \
-  -H "Content-Type: application/json" \
-  -d '{"code": "google_auth_code"}'
-```
-
-#### Q: "Required parameter 'code' is not present" error
-**A**: OAuth2 callback endpoint should only be called by Google.
-- For manual testing: Use `POST /api/v1/auth/google`
-- For web flows: Use `GET /api/v1/auth/login/oauth2/code/google` (Google only)
-
-#### Q: "Environment variables not working"
-**A**: Check environment variable setup:
-```bash
-# Check current environment variables
-echo $GOOGLE_CLIENT_ID
-echo $GOOGLE_CLIENT_SECRET
-echo $GOOGLE_REDIRECT_URI
-
-# Correct setup example
-export GOOGLE_CLIENT_ID="your-actual-google-client-id"
-export GOOGLE_CLIENT_SECRET="your-actual-google-client-secret"
-export GOOGLE_REDIRECT_URI="http://localhost:8001/api/v1/auth/login/oauth2/code/google"
-
-# Run application with environment variables
-GOOGLE_CLIENT_ID=your-id GOOGLE_CLIENT_SECRET=your-secret ./gradlew bootRun
-```
-
-#### Q: OAuth2 redirect not working
-**A**: Check Google Cloud Console setup:
-1. **Google Cloud Console** → APIs & Services → Credentials
-2. Select **OAuth 2.0 Client IDs**
-3. Add exactly to **Authorized redirect URIs**:
-   ```
-   http://localhost:8001/api/v1/auth/login/oauth2/code/google
-   ```
-4. **Save** and wait a few minutes before testing
-
-#### Q: How to test JWT tokens?
-**A**: Use Swagger UI:
-1. Go to http://localhost:8001/swagger-ui.html
-2. Click "Authorize" button
-3. Enter token in format: `Bearer <your-jwt-token>`
-4. Test protected endpoints
-
-## 🚀 Deployment
-
-### Production Considerations
-1. **Environment Variables**: Set required OAuth2 environment variables
-2. **Database**: Configure production MySQL instance
-3. **HTTPS**: Enable SSL/TLS for production
-4. **CORS**: Update allowed origins for production frontend URL
-5. **JWT Key Management**: Use external key management systems (KMS) to securely manage RSA key pairs in production
-
-### Docker (Optional)
-```dockerfile
-FROM openjdk:17-jdk-slim
-COPY build/libs/civic-insights-auth-*.jar app.jar
-EXPOSE 8001
-ENTRYPOINT ["java", "-jar", "/app.jar"]
-```
-
-## 🤝 Integration with Other Services
-
-This auth service is designed to work in a microservices architecture:
-
-1. **Frontend Applications**: Use the OAuth2 and JWT endpoints for user authentication
-2. **Other Microservices**: Fetch public keys from `/.well-known/jwks.json` endpoint to independently verify JWT tokens
-3. **API Gateway**: Route authentication requests to this service or perform distributed verification using public keys
-
-### Example Integration
-```javascript
-// Frontend: Login with Google
-const response = await fetch('/api/v1/auth/google', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ code: googleAuthCode })
-});
-
-const { accessToken } = await response.json();
-
-// Use token for subsequent API calls
-const profileResponse = await fetch('/api/v1/profile', {
-  headers: { 'Authorization': `Bearer ${accessToken}` }
-});
-```
-
-## 📝 License
-
-This project is part of the Civic Insights platform.
 
 ## 📞 Support
+Please file an issue in the repository for questions or problems.
 
-For questions or issues, please contact the development team or create an issue in the repository.
+## 🆕 Versions
+- v1.3.0: Introduced Gateway Only Security, type-safe settings (SecurityProperties), and secure token hand-off for server-driven flow
+- v1.2.0: Introduced RSA-based JWT and JWK endpoint
 
----
-
-## 🆕 Recent Updates
-
-### v1.2.0 - RSA Asymmetric Key JWT Implementation Complete
-- ✅ **RSA Asymmetric Key JWT** Upgraded from symmetric to asymmetric key approach
-- ✅ **JWK Endpoint** `/.well-known/jwks.json` public key provision
-- ✅ **Enhanced Security** Improved security with RSA256 algorithm
-- ✅ **Microservice Friendly** Support for independent token verification in distributed environments
-- ✅ **Library Updates** Applied JJWT 0.12.6, Nimbus JOSE JWT 10.4
-- ✅ **Configuration Simplification** Simplified setup by removing JWT secret-key
-
-### v1.1.0 - OpenAPI/Swagger Integration Complete
-- ✅ **SpringDoc OpenAPI UI** integration completed
-- ✅ **Interactive API Documentation** http://localhost:8001/swagger-ui.html
-- ✅ **JWT Authentication Integration** Direct token testing in Swagger UI
-- ✅ **OAuth2 Endpoint Optimization** and improved error handling
-- ✅ **Security Configuration Updates** SpringDoc endpoint support
-- ✅ **Detailed Troubleshooting Guide** added
-- ✅ **Environment Variable Setup Guide** completed
-
-### Key Improvements (v1.2.0)
-- **Security Architecture**: Upgraded JWT security model from symmetric to RSA asymmetric keys
-- **Distributed Verification**: Independent token verification across microservices through public key distribution
-- **Standards Compliance**: Implemented OAuth2/OpenID Connect JWK standard endpoints
-- **Operational Efficiency**: Simplified key management and reduced configuration complexity
-- **Scalability**: Enhanced token verification performance and security in distributed environments
-
-### Key Improvements (v1.1.0)
-- **API Documentation**: Complete interactive documentation compliant with OpenAPI 3.0 standards
-- **Developer Experience**: Direct API testing and JWT authentication in Swagger UI
-- **Error Handling**: Clear explanation of OAuth2 callback endpoint 400 errors
-- **Setup Guides**: Detailed guides for Google Cloud Console and environment variable configuration
-- **Security Enhancement**: Optimized security settings to expose only correct endpoints
-
----
+—
 
 **Built with ❤️ for the Civic Insights Platform** 

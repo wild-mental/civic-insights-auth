@@ -308,6 +308,11 @@ public class GatewayOnlyFilter extends OncePerRequestFilter {
 # Gateway Only Security 설정
 app.security.gateway-only=true
 app.security.gateway-token=${GATEWAY_SECRET_TOKEN:civic-insights-gateway-v1}
+
+# Frontend redirect base (AuthController에서 사용)
+frontend.redirect-base=${FRONTEND_BASE_URL:http://localhost:9002}
+# Frontend session POST URL (현재 구현: 토큰 폼 POST 방식 사용)
+frontend.session-post-url=${FRONTEND_SESSION_POST_URL:http://localhost:9002/api/session}
 ```
 
 ### 💡 설정 설명
